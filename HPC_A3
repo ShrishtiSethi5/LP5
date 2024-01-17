@@ -1,0 +1,87 @@
+#include <iostream>
+#include <iomanip>
+#include <omp.h>
+#include <time.h>
+#include <limits>
+
+const int dataSize = 1000000;
+int data[dataSize];
+
+// Function to initialize data with random values
+void initializeData() {
+    #pragma omp parallel for
+    for (int i = 0; i < dataSize; ++i) {
+        data[i] = rand() % 100;
+    }
+}
+
+// Function to perform parallel reduction for min, max, sum, and average
+void parallelReduction(int& minVal, int& maxVal, int& sum, double& avg) {
+    minVal = maxVal = sum = 0;
+
+    // Parallel reduction for min, max, and sum
+    #pragma omp parallel for reduction(min:minVal) reduction(max:maxVal) reduction(+:sum)
+    for (int i = 0; i < dataSize; ++i) {
+        minVal = std::min(minVal, data[i]);
+        maxVal = std::max(maxVal, data[i]);
+        sum += data[i];
+    }
+
+    // Calculate average
+    avg = static_cast<double>(sum) / dataSize;
+}
+
+// Function to perform sequential reduction for min, max, sum, and average
+void sequentialReduction(int& minVal, int& maxVal, int& sum, double& avg) {
+    minVal = maxVal = sum = 0;
+
+    // Sequential reduction for min, max, and sum
+    for (int i = 0; i < dataSize; ++i) {
+        minVal = std::min(minVal, data[i]);
+        maxVal = std::max(maxVal, data[i]);
+        sum += data[i];
+    }
+
+    // Calculate average
+    avg = static_cast<double>(sum) / dataSize;
+}
+
+int main() {
+    // Initialize data with random values
+    initializeData();
+
+    // Perform parallel reduction and measure time
+    timespec startParallel, endParallel;
+    int minValP, maxValP, sumP;
+    double avgP;
+
+    clock_gettime(CLOCK_MONOTONIC, &startParallel);
+    parallelReduction(minValP, maxValP, sumP, avgP);
+    clock_gettime(CLOCK_MONOTONIC, &endParallel);
+
+    // Calculate parallel time in milliseconds
+    double durationParallel = (endParallel.tv_sec - startParallel.tv_sec) * 1000.0 + 
+                              (endParallel.tv_nsec - startParallel.tv_nsec) / 1000000.0;
+
+    // Perform sequential reduction and measure time
+    timespec startSequential, endSequential;
+    int minValS, maxValS, sumS;
+    double avgS;
+
+    clock_gettime(CLOCK_MONOTONIC, &startSequential);
+    sequentialReduction(minValS, maxValS, sumS, avgS);
+    clock_gettime(CLOCK_MONOTONIC, &endSequential);
+
+    // Calculate sequential time in milliseconds
+    double durationSequential = (endSequential.tv_sec - startSequential.tv_sec) * 1000.0 + 
+                                (endSequential.tv_nsec - startSequential.tv_nsec) / 1000000.0;
+
+    // Display results and time taken
+    std::cout << "Parallel Min: " << minValP << ", Max: " << maxValP << ", Sum: " << sumP << ", Avg: " << avgP << std::endl;
+    std::cout << "Sequential Min: " << minValS << ", Max: " << maxValS << ", Sum: " << sumS << ", Avg: " << avgS << std::endl;
+
+    std::cout << "Parallel Time: " << std::fixed << std::setprecision(5) << durationParallel << " milliseconds" << std::endl;
+    std::cout << "Sequential Time: " << std::fixed << std::setprecision(5) << durationSequential << " milliseconds" << std::endl;
+
+    return 0;
+}
