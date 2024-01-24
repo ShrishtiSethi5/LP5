@@ -1,87 +1,143 @@
 #include <iostream>
-#include <iomanip>
+#include <climits>
+#include <cstdlib>
+#include <chrono>
 #include <omp.h>
-#include <time.h>
-#include <limits>
 
-const int dataSize = 1000000;
-int data[dataSize];
+using namespace std;
 
-// Function to initialize data with random values
-void initializeData() {
-    #pragma omp parallel for
-    for (int i = 0; i < dataSize; ++i) {
-        data[i] = rand() % 100;
+// Sequential Version
+int findMinSequential(int arr[], int n) {
+    int min_value = INT_MAX;
+    for (int i = 0; i < n; i++) {
+        if (arr[i] < min_value) {
+            min_value = arr[i];
+        }
     }
+    return min_value;
 }
 
-// Function to perform parallel reduction for min, max, sum, and average
-void parallelReduction(int& minVal, int& maxVal, int& sum, double& avg) {
-    minVal = maxVal = sum = 0;
-
-    // Parallel reduction for min, max, and sum
-    #pragma omp parallel for reduction(min:minVal) reduction(max:maxVal) reduction(+:sum)
-    for (int i = 0; i < dataSize; ++i) {
-        minVal = std::min(minVal, data[i]);
-        maxVal = std::max(maxVal, data[i]);
-        sum += data[i];
+int findMaxSequential(int arr[], int n) {
+    int max_value = INT_MIN;
+    for (int i = 0; i < n; i++) {
+        if (arr[i] > max_value) {
+            max_value = arr[i];
+        }
     }
-
-    // Calculate average
-    avg = static_cast<double>(sum) / dataSize;
+    return max_value;
 }
 
-// Function to perform sequential reduction for min, max, sum, and average
-void sequentialReduction(int& minVal, int& maxVal, int& sum, double& avg) {
-    minVal = maxVal = sum = 0;
-
-    // Sequential reduction for min, max, and sum
-    for (int i = 0; i < dataSize; ++i) {
-        minVal = std::min(minVal, data[i]);
-        maxVal = std::max(maxVal, data[i]);
-        sum += data[i];
+int calculateSumSequential(int arr[], int n) {
+    int sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
     }
+    return sum;
+}
 
-    // Calculate average
-    avg = static_cast<double>(sum) / dataSize;
+int calculateAverageSequential(int arr[], int n) {
+    int sum = calculateSumSequential(arr, n);
+    return sum / n;
+}
+
+// OpenMP Parallel Version
+int findMinParallel(int arr[], int n) {
+    int min_value = INT_MAX;
+#pragma omp parallel for reduction(min: min_value)
+    for (int i = 0; i < n; i++) {
+        if (arr[i] < min_value) {
+            min_value = arr[i];
+        }
+    }
+    return min_value;
+}
+
+int findMaxParallel(int arr[], int n) {
+    int max_value = INT_MIN;
+#pragma omp parallel for reduction(max: max_value)
+    for (int i = 0; i < n; i++) {
+        if (arr[i] > max_value) {
+            max_value = arr[i];
+        }
+    }
+    return max_value;
+}
+
+int calculateSumParallel(int arr[], int n) {
+    int sum = 0;
+#pragma omp parallel for reduction(+: sum)
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    return sum;
+}
+
+int calculateAverageParallel(int arr[], int n) {
+    int sum = calculateSumParallel(arr, n);
+    return sum / n;
 }
 
 int main() {
-    // Initialize data with random values
-    initializeData();
+    int *arr, n;
+    cout << "\nEnter total number of elements: ";
+    cin >> n;
 
-    // Perform parallel reduction and measure time
-    timespec startParallel, endParallel;
-    int minValP, maxValP, sumP;
-    double avgP;
+    int lb = 0;
+    int ub = n;
+    arr = new int[n];
 
-    clock_gettime(CLOCK_MONOTONIC, &startParallel);
-    parallelReduction(minValP, maxValP, sumP, avgP);
-    clock_gettime(CLOCK_MONOTONIC, &endParallel);
+    for (int i = 0; i < n; i++) {
+        arr[i] = (rand() % (ub - lb + 1));
+    }
 
-    // Calculate parallel time in milliseconds
-    double durationParallel = (endParallel.tv_sec - startParallel.tv_sec) * 1000.0 + 
-                              (endParallel.tv_nsec - startParallel.tv_nsec) / 1000000.0;
+    cout << "Generated array: ";
+    for (int i = 0; i < n; i++) {
+        cout << arr[i] << " ";
+    }
+    cout << endl;
 
-    // Perform sequential reduction and measure time
-    timespec startSequential, endSequential;
-    int minValS, maxValS, sumS;
-    double avgS;
+    // Sequential version
+    auto startSeq = chrono::steady_clock::now();
+    cout << "Sequential Min = " << findMinSequential(arr, n) << endl;
+    auto endSeq = chrono::steady_clock::now();
+    cout << "Sequential Elapsed time for Min in microseconds: " << chrono::duration_cast<chrono::microseconds>(endSeq - startSeq).count() << " microsecs" << endl;
 
-    clock_gettime(CLOCK_MONOTONIC, &startSequential);
-    sequentialReduction(minValS, maxValS, sumS, avgS);
-    clock_gettime(CLOCK_MONOTONIC, &endSequential);
+    startSeq = chrono::steady_clock::now();
+    cout << "Sequential Max = " << findMaxSequential(arr, n) << endl;
+    endSeq = chrono::steady_clock::now();
+    cout << "Sequential Elapsed time for Max in microseconds: " << chrono::duration_cast<chrono::microseconds>(endSeq - startSeq).count() << " microsecs" << endl;
 
-    // Calculate sequential time in milliseconds
-    double durationSequential = (endSequential.tv_sec - startSequential.tv_sec) * 1000.0 + 
-                                (endSequential.tv_nsec - startSequential.tv_nsec) / 1000000.0;
+    startSeq = chrono::steady_clock::now();
+    cout << "Sequential Sum = " << calculateSumSequential(arr, n) << endl;
+    endSeq = chrono::steady_clock::now();
+    cout << "Sequential Elapsed time for Sum in microseconds: " << chrono::duration_cast<chrono::microseconds>(endSeq - startSeq).count() << " microsecs" << endl;
 
-    // Display results and time taken
-    std::cout << "Parallel Min: " << minValP << ", Max: " << maxValP << ", Sum: " << sumP << ", Avg: " << avgP << std::endl;
-    std::cout << "Sequential Min: " << minValS << ", Max: " << maxValS << ", Sum: " << sumS << ", Avg: " << avgS << std::endl;
+    startSeq = chrono::steady_clock::now();
+    cout << "Sequential Average = " << calculateAverageSequential(arr, n) << endl;
+    endSeq = chrono::steady_clock::now();
+    cout << "Sequential Elapsed time for Average in microseconds: " << chrono::duration_cast<chrono::microseconds>(endSeq - startSeq).count() << " microsecs" << endl;
 
-    std::cout << "Parallel Time: " << std::fixed << std::setprecision(5) << durationParallel << " milliseconds" << std::endl;
-    std::cout << "Sequential Time: " << std::fixed << std::setprecision(5) << durationSequential << " milliseconds" << std::endl;
+    // OpenMP Parallel version
+    auto startParallel = chrono::steady_clock::now();
+    cout << "Parallel Min = " << findMinParallel(arr, n) << endl;
+    auto endParallel = chrono::steady_clock::now();
+    cout << "Parallel Elapsed time for Min in microseconds: " << chrono::duration_cast<chrono::microseconds>(endParallel - startParallel).count() << " microsecs" << endl;
 
+    startParallel = chrono::steady_clock::now();
+    cout << "Parallel Max = " << findMaxParallel(arr, n) << endl;
+    endParallel = chrono::steady_clock::now();
+    cout << "Parallel Elapsed time for Max in microseconds: " << chrono::duration_cast<chrono::microseconds>(endParallel - startParallel).count() << " microsecs" << endl;
+
+    startParallel = chrono::steady_clock::now();
+    cout << "Parallel Sum = " << calculateSumParallel(arr, n) << endl;
+    endParallel = chrono::steady_clock::now();
+    cout << "Parallel Elapsed time for Sum in microseconds: " << chrono::duration_cast<chrono::microseconds>(endParallel - startParallel).count() << " microsecs" << endl;
+
+    startParallel = chrono::steady_clock::now();
+    cout << "Parallel Average = " << calculateAverageParallel(arr, n) << endl;
+    endParallel = chrono::steady_clock::now();
+    cout << "Parallel Elapsed time for Average in microseconds: " << chrono::duration_cast<chrono::microseconds>(endParallel - startParallel).count() << " microsecs" << endl;
+
+    delete[] arr; // Don't forget to release the allocated memory
     return 0;
 }
