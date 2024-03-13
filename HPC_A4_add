@@ -75,6 +75,7 @@ int main(){
     cout << "GPU result:\n";
     print_matrix(result_cpu,size);
     cout<<"Elapsed Time = "<<elapsedTime<<" milliseconds" << endl;
+    float e1=elapsedTime;
     cudaFree(arr1_gpu);
     cudaFree(arr2_gpu);
     cudaFree(result_gpu);
@@ -92,6 +93,8 @@ int main(){
     cout << "CPU result:\n";
     print_matrix(result_cpu,size);
     cout<<"Elapsed Time = "<<elapsedTime<<" milliseconds" << endl;
+    float e2=elapsedTime;
+    cout<<"Speedup: :"<<e1/e2;
 
     return 0;
 }
