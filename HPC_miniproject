@@ -1,0 +1,90 @@
+#include <iostream>
+#include <vector>
+#include <omp.h>
+
+using namespace std;
+
+// Function to partition the array
+int partition(vector<int> &arr, int low, int high) {
+    int pivot = arr[high];
+    int i = (low - 1);
+
+    for (int j = low; j <= high - 1; j++) {
+        if (arr[j] < pivot) {
+            i++;
+            swap(arr[i], arr[j]);
+        }
+    }
+    swap(arr[i + 1], arr[high]);
+    return (i + 1);
+}
+
+// Sequential Quicksort function
+void sequentialQuicksort(vector<int> &arr, int low, int high) {
+    if (low < high) {
+        int pi = partition(arr, low, high);
+        sequentialQuicksort(arr, low, pi - 1);
+        sequentialQuicksort(arr, pi + 1, high);
+    }
+}
+
+// Parallel Quicksort function
+void parallelQuicksort(vector<int> &arr, int low, int high) {
+    if (low < high) {
+        int pi = partition(arr, low, high);
+        #pragma omp parallel sections
+        {
+            #pragma omp section
+            {
+                parallelQuicksort(arr, low, pi - 1);
+            }
+            #pragma omp section
+            {
+                parallelQuicksort(arr, pi + 1, high);
+            }
+        }
+    }
+}
+
+int main() {
+
+	const int size = 10000000; 
+    vector<int> data(size);
+
+    
+    srand(time(0));
+    for (int i = 0; i < size; i++) 
+    {
+        data[i] = rand() % 100000;
+    }
+    //vector<int> data = {9, 7, 5, 11, 12, 2, 14, 3, 10, 6};
+
+    // Sequential Quicksort
+    vector<int> seq_data = data;
+    double start = omp_get_wtime();
+    sequentialQuicksort(seq_data, 0, seq_data.size() - 1);
+    double end = omp_get_wtime();
+    double stime=end-start;
+    cout << "Sequential Quicksort Time: " << stime << " seconds\n";
+
+    // Parallel Quicksort
+    vector<int> par_data = data;
+    int num_threads = omp_get_max_threads();
+    omp_set_num_threads(num_threads);
+    start = omp_get_wtime();
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            parallelQuicksort(par_data, 0, par_data.size() - 1);
+        }
+    }
+    end = omp_get_wtime();
+    double ptime=end-start;
+    cout << "Parallel Quicksort Time: " << ptime << " seconds\n";
+    
+    double speedup= stime/ptime;
+    cout<<"The Speedup is: "<<speedup<<"\n";
+
+    return 0;
+}
